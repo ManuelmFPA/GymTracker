@@ -5,12 +5,12 @@ import com.gymtracker.entity.BodyWeight;
 import com.gymtracker.entity.Set;
 import com.gymtracker.entity.User;
 import com.gymtracker.entity.Workout;
+import com.gymtracker.entity.enums.SetType;
 import com.gymtracker.entity.enums.WorkoutStatus;
 import com.gymtracker.exception.ResourceNotFoundException;
 import com.gymtracker.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -33,7 +33,6 @@ public class ProgressService {
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    @Transactional(readOnly = true)
     public DashboardResponse getDashboard() {
         User user = currentUserService.getCurrentUser();
         Long userId = user.getId();
@@ -75,13 +74,13 @@ public class ProgressService {
         );
     }
 
-    @Transactional(readOnly = true)
     public ExerciseProgressResponse getExerciseProgress(Long exerciseId) {
         Long userId = currentUserService.getCurrentUserId();
         var exercise = exerciseRepository.findById(exerciseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ejercicio no encontrado"));
 
-        List<Set> completedSets = setRepository.findAllCompletedForExercise(userId, exerciseId);
+        List<Set> completedSets = setRepository.findAllCompletedForExercise(userId, exerciseId)
+                .stream().filter(s -> s.getSetType() != SetType.WARMUP).toList();
 
         double bestWeight = completedSets.stream().filter(s -> s.getWeight() != null)
                 .mapToDouble(Set::getWeight).max().orElse(0);
@@ -125,7 +124,8 @@ public class ProgressService {
         return workout.getExercises().stream()
                 .flatMap(we -> we.getSets().stream())
                 .filter(s -> s.getWeight() != null && s.getRepetitions() != null
-                        && s.getStatus().name().equals("COMPLETED"))
+                        && s.getStatus().name().equals("COMPLETED")
+                        && s.getSetType() != SetType.WARMUP)
                 .mapToDouble(s -> s.getWeight() * s.getRepetitions())
                 .sum();
     }

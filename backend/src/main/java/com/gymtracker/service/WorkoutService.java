@@ -3,6 +3,7 @@ package com.gymtracker.service;
 import com.gymtracker.dto.workout.*;
 import com.gymtracker.entity.*;
 import com.gymtracker.entity.enums.SetStatus;
+import com.gymtracker.entity.enums.SetType;
 import com.gymtracker.entity.enums.WorkoutStatus;
 import com.gymtracker.exception.BadRequestException;
 import com.gymtracker.exception.ForbiddenException;
@@ -68,7 +69,6 @@ public class WorkoutService {
         return toResponse(workoutRepository.save(workout));
     }
 
-    @Transactional(readOnly = true)
     public WorkoutResponse getActive() {
         Long userId = currentUserService.getCurrentUserId();
         Workout workout = workoutRepository
@@ -77,12 +77,10 @@ public class WorkoutService {
         return toResponse(workout);
     }
 
-    @Transactional(readOnly = true)
     public WorkoutResponse getById(Long id) {
         return toResponse(findOwned(id));
     }
 
-    @Transactional(readOnly = true)
     public List<WorkoutResponse> getHistory() {
         Long userId = currentUserService.getCurrentUserId();
         return workoutRepository.findByUserIdOrderByStartTimeDesc(userId)
@@ -131,6 +129,16 @@ public class WorkoutService {
         set.setRepetitions(request.repetitions());
         set.setRpe(request.rpe());
         set.setNotes(request.notes());
+
+        if (request.setType() != null) {
+            try {
+                set.setSetType(SetType.valueOf(request.setType()));
+            } catch (IllegalArgumentException ex) {
+                throw new BadRequestException("Tipo de serie inválido: " + request.setType());
+            }
+        } else if (set.getSetType() == null) {
+            set.setSetType(SetType.NORMAL);
+        }
 
         if (Boolean.TRUE.equals(request.completed())) {
             set.setStatus(SetStatus.COMPLETED);
@@ -194,6 +202,7 @@ public class WorkoutService {
         return workout.getExercises().stream()
                 .flatMap(we -> we.getSets().stream())
                 .filter(s -> s.getStatus() == SetStatus.COMPLETED && s.getWeight() != null && s.getRepetitions() != null)
+                .filter(s -> s.getSetType() != SetType.WARMUP)
                 .mapToDouble(s -> s.getWeight() * s.getRepetitions())
                 .sum();
     }
@@ -216,7 +225,7 @@ public class WorkoutService {
                             .orElse(List.of());
 
                     String best = setRepository.findAllCompletedForExercise(workout.getUser().getId(), we.getExercise().getId())
-                            .stream().filter(s -> s.getWeight() != null)
+                            .stream().filter(s -> s.getWeight() != null && s.getSetType() != SetType.WARMUP)
                             .max(Comparator.comparingDouble(Set::getWeight))
                             .map(s -> s.getWeight() + " kg x " + s.getRepetitions())
                             .orElse(null);
@@ -241,6 +250,6 @@ public class WorkoutService {
 
     private SetResponse toSetResponse(Set s) {
         return new SetResponse(s.getId(), s.getSetNumber(), s.getWeight(), s.getRepetitions(),
-                s.getRpe(), s.getStatus().name(), s.getCompletedAt(), s.getNotes());
+                s.getRpe(), s.getStatus().name(), s.getCompletedAt(), s.getNotes(), s.getSetType().name());
     }
 }

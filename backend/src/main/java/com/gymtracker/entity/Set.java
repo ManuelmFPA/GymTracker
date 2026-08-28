@@ -1,6 +1,7 @@
 package com.gymtracker.entity;
 
 import com.gymtracker.entity.enums.SetStatus;
+import com.gymtracker.entity.enums.SetType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -38,6 +39,11 @@ public class Set {
     @Column(nullable = false, length = 20)
     @Builder.Default
     private SetStatus status = SetStatus.PENDING;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "set_type", nullable = false, length = 20)
+    @Builder.Default
+    private SetType setType = SetType.NORMAL;
 
     @Column(name = "completed_at")
     private LocalDateTime completedAt;

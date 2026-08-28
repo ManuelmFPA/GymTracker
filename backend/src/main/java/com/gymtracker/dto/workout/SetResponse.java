@@ -10,5 +10,6 @@ public record SetResponse(
         Double rpe,
         String status,
         LocalDateTime completedAt,
-        String notes
+        String notes,
+        String setType
 ) {}

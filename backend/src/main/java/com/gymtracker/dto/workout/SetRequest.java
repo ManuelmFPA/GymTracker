@@ -10,5 +10,6 @@ public record SetRequest(
         @Min(value = 0, message = "Las repeticiones deben ser positivas") Integer repetitions,
         Double rpe,
         String notes,
-        Boolean completed
+        Boolean completed,
+        String setType
 ) {}

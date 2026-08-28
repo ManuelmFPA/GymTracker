@@ -1,10 +1,15 @@
 import { useState } from "react";
-import type { WorkoutExerciseResponse } from "../types/workout";
+import type { SetType, WorkoutExerciseResponse } from "../types/workout";
 import { PlateCalculator } from "./PlateCalculator";
 
 interface SetTrackerProps {
   workoutExercise: WorkoutExerciseResponse;
-  onCompleteSet: (setNumber: number, weight: number | null, reps: number | null) => void;
+  onCompleteSet: (
+    setNumber: number,
+    weight: number | null,
+    reps: number | null,
+    setType: SetType
+  ) => void;
 }
 
 export function SetTracker({ workoutExercise, onCompleteSet }: SetTrackerProps) {
@@ -41,7 +46,9 @@ export function SetTracker({ workoutExercise, onCompleteSet }: SetTrackerProps) 
             setNumber={setNumber}
             existing={workoutExercise.sets.find((s) => s.setNumber === setNumber)}
             previous={workoutExercise.previousSets.find((s) => s.setNumber === setNumber)}
-            onComplete={(weight, reps) => onCompleteSet(setNumber, weight, reps)}
+            onComplete={(weight, reps, setType) =>
+              onCompleteSet(setNumber, weight, reps, setType)
+            }
           />
         ))}
       </div>
@@ -49,17 +56,32 @@ export function SetTracker({ workoutExercise, onCompleteSet }: SetTrackerProps) 
   );
 }
 
+const TYPE_LABELS: Record<SetType, { label: string; className: string }> = {
+  NORMAL: { label: "N", className: "bg-slate-100 text-slate-500" },
+  WARMUP: { label: "C", className: "bg-amber-100 text-amber-700" },
+  FAILURE: { label: "F", className: "bg-red-100 text-red-700" },
+  DROP: { label: "D", className: "bg-purple-100 text-purple-700" },
+};
+const TYPE_ORDER: SetType[] = ["NORMAL", "WARMUP", "FAILURE", "DROP"];
+const TYPE_TITLES: Record<SetType, string> = {
+  NORMAL: "Normal",
+  WARMUP: "Calentamiento (no cuenta para volumen/PRs)",
+  FAILURE: "Al fallo",
+  DROP: "Drop set",
+};
+
 interface SetRowProps {
   setNumber: number;
   existing?: WorkoutExerciseResponse["sets"][number];
   previous?: WorkoutExerciseResponse["previousSets"][number];
-  onComplete: (weight: number | null, reps: number | null) => void;
+  onComplete: (weight: number | null, reps: number | null, setType: SetType) => void;
 }
 
 function SetRow({ setNumber, existing, previous, onComplete }: SetRowProps) {
   const isDone = existing?.status === "COMPLETED";
   const [weight, setWeight] = useState<string>(existing?.weight?.toString() ?? "");
   const [reps, setReps] = useState<string>(existing?.repetitions?.toString() ?? "");
+  const [setType, setSetType] = useState<SetType>(existing?.setType ?? "NORMAL");
   const [showCalculator, setShowCalculator] = useState(false);
 
   const placeholderWeight = previous?.weight != null ? String(previous.weight) : "0";
@@ -67,13 +89,33 @@ function SetRow({ setNumber, existing, previous, onComplete }: SetRowProps) {
 
   const calculatorTarget = weight ? Number(weight) : previous?.weight ?? null;
 
+  function cycleType() {
+    const idx = TYPE_ORDER.indexOf(setType);
+    setSetType(TYPE_ORDER[(idx + 1) % TYPE_ORDER.length]);
+  }
+
+  const typeStyle = TYPE_LABELS[isDone && existing ? existing.setType : setType];
+  const displayType = isDone && existing ? existing.setType : setType;
+
   return (
     <div
       className={`grid grid-cols-[2rem_1fr_1fr_2rem_2.5rem] gap-2 items-center rounded-md px-1 py-1 ${
         isDone ? "bg-green-50" : ""
       }`}
     >
-      <span className="text-sm font-medium text-slate-500">{setNumber}</span>
+      <button
+        onClick={cycleType}
+        disabled={isDone}
+        title={TYPE_TITLES[displayType]}
+        className="flex items-center gap-1 text-sm font-medium text-slate-500 disabled:cursor-default"
+      >
+        {setNumber}
+        {displayType !== "NORMAL" && (
+          <span className={`text-[10px] font-bold rounded px-1 ${typeStyle.className}`}>
+            {typeStyle.label}
+          </span>
+        )}
+      </button>
       <input
         type="number"
         inputMode="decimal"
@@ -103,7 +145,7 @@ function SetRow({ setNumber, existing, previous, onComplete }: SetRowProps) {
       <button
         disabled={isDone}
         onClick={() =>
-          onComplete(weight ? Number(weight) : null, reps ? Number(reps) : null)
+          onComplete(weight ? Number(weight) : null, reps ? Number(reps) : null, setType)
         }
         className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold transition ${
           isDone

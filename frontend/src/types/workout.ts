@@ -3,6 +3,9 @@
 // com.gymtracker.entity.enums.SetStatus
 export type SetStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED";
 
+// com.gymtracker.entity.enums.SetType
+export type SetType = "NORMAL" | "WARMUP" | "FAILURE" | "DROP";
+
 // com.gymtracker.entity.enums.WorkoutStatus
 export type WorkoutStatus =
   | "NOT_STARTED"
@@ -26,6 +29,7 @@ export interface SetRequest {
   rpe?: number | null;
   notes?: string | null;
   completed?: boolean | null;
+  setType?: SetType | null;
 }
 
 export interface SetResponse {
@@ -37,6 +41,7 @@ export interface SetResponse {
   status: SetStatus;
   completedAt: string | null; // ISO LocalDateTime
   notes: string | null;
+  setType: SetType;
 }
 
 export interface WorkoutExerciseResponse {
