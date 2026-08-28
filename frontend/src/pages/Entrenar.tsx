@@ -77,8 +77,12 @@ export default function Entrenar() {
           <SetTracker
             key={ex.id}
             workoutExercise={ex}
-            onCompleteSet={(setNumber, weight, reps) =>
-              completeSet(ex.id, { setNumber, weight, repetitions: reps }, ex.restSeconds)
+            onCompleteSet={(setNumber, weight, reps, setType) =>
+              completeSet(
+                ex.id,
+                { setNumber, weight, repetitions: reps, setType },
+                ex.restSeconds
+              )
             }
           />
         ))}

@@ -82,6 +82,7 @@ export const useWorkoutStore = create<WorkoutState>()(
             status: "COMPLETED" as const,
             completedAt: new Date().toISOString(),
             notes: data.notes ?? null,
+            setType: data.setType ?? "NORMAL",
           };
 
           const sets =
