@@ -11,6 +11,7 @@ export default function Rutinas() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [startingId, setStartingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   const { activeWorkout, start } = useWorkoutStore();
@@ -51,6 +52,26 @@ export default function Rutinas() {
     }
   }
 
+  async function handleDelete(routine: RoutineResponse) {
+    const confirmed = window.confirm(
+      `¿Eliminar la rutina "${routine.name}"? Esta acción no se puede deshacer.`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(routine.id);
+    setActionError(null);
+    try {
+      await routinesApi.delete(routine.id);
+      setRoutines((prev) => prev.filter((r) => r.id !== routine.id));
+    } catch (err) {
+      setActionError(
+        err instanceof ApiRequestError ? err.message : "No se pudo eliminar la rutina"
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div className="p-4">
       <div className="flex items-center justify-between mb-4">
@@ -59,6 +80,13 @@ export default function Rutinas() {
           Ver ejercicios
         </Link>
       </div>
+
+      <Link
+        to="/rutinas/nueva"
+        className="block w-full text-center bg-blue-600 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-blue-700 transition mb-4"
+      >
+        + Nueva rutina
+      </Link>
 
       {isLoading && <p className="text-sm text-slate-500">Cargando...</p>}
 
@@ -77,21 +105,43 @@ export default function Rutinas() {
       {actionError && <p className="text-sm text-red-600 mb-2">{actionError}</p>}
 
       {!isLoading && !loadError && routines.length === 0 && (
-        <p className="text-sm text-slate-500">Todavía no tienes rutinas creadas.</p>
+        <p className="text-sm text-slate-500">
+          Todavía no tienes rutinas creadas. Usa el botón de arriba para crear la primera.
+        </p>
       )}
 
       <ul className="space-y-2">
         {routines.map((r) => (
           <li key={r.id} className="bg-white rounded-lg shadow p-4">
-            <p className="font-medium text-slate-900">{r.name}</p>
-            {r.description && <p className="text-sm text-slate-500">{r.description}</p>}
-            <p className="text-xs text-slate-400 mt-1 mb-3">
-              {r.exercises.length} ejercicio{r.exercises.length !== 1 ? "s" : ""}
-            </p>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="font-medium text-slate-900">{r.name}</p>
+                {r.description && <p className="text-sm text-slate-500">{r.description}</p>}
+                <p className="text-xs text-slate-400 mt-1">
+                  {r.exercises.length} ejercicio{r.exercises.length !== 1 ? "s" : ""}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 ml-2">
+                <Link
+                  to={`/rutinas/${r.id}/editar`}
+                  className="text-xs font-medium text-slate-500 hover:text-blue-600"
+                >
+                  Editar
+                </Link>
+                <button
+                  onClick={() => handleDelete(r)}
+                  disabled={deletingId === r.id}
+                  className="text-xs font-medium text-red-500 hover:text-red-700 disabled:opacity-50"
+                >
+                  {deletingId === r.id ? "Eliminando..." : "Eliminar"}
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={() => handleStart(r.id)}
               disabled={startingId === r.id}
-              className="w-full bg-blue-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
+              className="w-full mt-3 bg-blue-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
             >
               {startingId === r.id ? "Iniciando..." : "Iniciar entrenamiento"}
             </button>
