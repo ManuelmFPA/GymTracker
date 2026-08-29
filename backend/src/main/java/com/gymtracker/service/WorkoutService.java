@@ -69,6 +69,7 @@ public class WorkoutService {
         return toResponse(workoutRepository.save(workout));
     }
 
+    @Transactional(readOnly = true)
     public WorkoutResponse getActive() {
         Long userId = currentUserService.getCurrentUserId();
         Workout workout = workoutRepository
@@ -77,10 +78,12 @@ public class WorkoutService {
         return toResponse(workout);
     }
 
+    @Transactional(readOnly = true)
     public WorkoutResponse getById(Long id) {
         return toResponse(findOwned(id));
     }
 
+    @Transactional(readOnly = true)
     public List<WorkoutResponse> getHistory() {
         Long userId = currentUserService.getCurrentUserId();
         return workoutRepository.findByUserIdOrderByStartTimeDesc(userId)

@@ -11,6 +11,7 @@ import com.gymtracker.exception.ResourceNotFoundException;
 import com.gymtracker.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -33,6 +34,7 @@ public class ProgressService {
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
+    @Transactional(readOnly = true)
     public DashboardResponse getDashboard() {
         User user = currentUserService.getCurrentUser();
         Long userId = user.getId();
@@ -74,6 +76,7 @@ public class ProgressService {
         );
     }
 
+    @Transactional(readOnly = true)
     public ExerciseProgressResponse getExerciseProgress(Long exerciseId) {
         Long userId = currentUserService.getCurrentUserId();
         var exercise = exerciseRepository.findById(exerciseId)
