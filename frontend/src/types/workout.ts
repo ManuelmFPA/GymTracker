@@ -42,6 +42,8 @@ export interface SetResponse {
   completedAt: string | null; // ISO LocalDateTime
   notes: string | null;
   setType: SetType;
+  isPersonalRecord: boolean;
+  prType: string | null;
 }
 
 export interface WorkoutExerciseResponse {

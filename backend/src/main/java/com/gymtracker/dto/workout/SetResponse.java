@@ -11,5 +11,7 @@ public record SetResponse(
         String status,
         LocalDateTime completedAt,
         String notes,
-        String setType
+        String setType,
+        boolean isPersonalRecord,
+        String prType
 ) {}

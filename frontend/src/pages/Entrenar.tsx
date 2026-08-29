@@ -4,6 +4,7 @@ import { useWorkoutStore } from "../store/workoutStore";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 import { SetTracker } from "../components/SetTracker";
 import { RestTimer } from "../components/RestTimer";
+import { PrToast } from "../components/PrToast";
 
 export default function Entrenar() {
   const {
@@ -11,11 +12,13 @@ export default function Entrenar() {
     isLoading,
     error,
     lastCompletedRestSeconds,
+    newPr,
     loadActive,
     completeSet,
     finish,
     cancel,
     clearRestTimer,
+    clearNewPr,
   } = useWorkoutStore();
   const { pendingCount } = useOfflineQueue();
   const navigate = useNavigate();
@@ -98,6 +101,8 @@ export default function Entrenar() {
       {lastCompletedRestSeconds != null && lastCompletedRestSeconds > 0 && (
         <RestTimer seconds={lastCompletedRestSeconds} onDone={clearRestTimer} />
       )}
+
+      {newPr && <PrToast message={newPr} onDismiss={clearNewPr} />}
     </div>
   );
 }

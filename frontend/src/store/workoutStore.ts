@@ -14,6 +14,7 @@ interface WorkoutState {
   isLoading: boolean;
   error: string | null;
   lastCompletedRestSeconds: number | null; // dispara el RestTimer en la UI
+  newPr: string | null; // mensaje del último récord confirmado por el servidor
 
   loadActive: () => Promise<void>;
   start: (routineId?: number) => Promise<void>;
@@ -25,6 +26,7 @@ interface WorkoutState {
   finish: (data?: FinishWorkoutRequest) => Promise<void>;
   cancel: () => Promise<void>;
   clearRestTimer: () => void;
+  clearNewPr: () => void;
 }
 
 export const useWorkoutStore = create<WorkoutState>()(
@@ -34,6 +36,7 @@ export const useWorkoutStore = create<WorkoutState>()(
       isLoading: false,
       error: null,
       lastCompletedRestSeconds: null,
+      newPr: null,
 
       loadActive: async () => {
         set({ isLoading: true, error: null });
@@ -83,6 +86,8 @@ export const useWorkoutStore = create<WorkoutState>()(
             completedAt: new Date().toISOString(),
             notes: data.notes ?? null,
             setType: data.setType ?? "NORMAL",
+            isPersonalRecord: false,
+            prType: null,
           };
 
           const sets =
@@ -129,6 +134,7 @@ export const useWorkoutStore = create<WorkoutState>()(
       },
 
       clearRestTimer: () => set({ lastCompletedRestSeconds: null }),
+      clearNewPr: () => set({ newPr: null }),
     }),
     {
       // Persistimos el entrenamiento activo para que sobreviva un refresh
@@ -144,7 +150,23 @@ export const useWorkoutStore = create<WorkoutState>()(
 // — pero solo si sigue siendo el mismo entrenamiento activo.
 offlineQueue.onSync((serverWorkout) => {
   const current = useWorkoutStore.getState().activeWorkout;
-  if (current && current.id === serverWorkout.id) {
-    useWorkoutStore.setState({ activeWorkout: serverWorkout });
+  if (!current || current.id !== serverWorkout.id) return;
+
+  // Antes de reemplazar el estado, comparamos contra lo que había para
+  // detectar si el servidor confirmó un récord que la UI aún no mostró
+  // (la actualización optimista no puede saber esto de antemano).
+  for (const serverEx of serverWorkout.exercises) {
+    const localEx = current.exercises.find((e) => e.id === serverEx.id);
+    for (const serverSet of serverEx.sets) {
+      if (!serverSet.isPersonalRecord) continue;
+      const localSet = localEx?.sets.find((s) => s.setNumber === serverSet.setNumber);
+      if (localSet && !localSet.isPersonalRecord) {
+        useWorkoutStore.setState({
+          newPr: `${serverEx.exerciseName}: ${serverSet.weight}kg x ${serverSet.repetitions} (${serverSet.prType})`,
+        });
+      }
+    }
   }
+
+  useWorkoutStore.setState({ activeWorkout: serverWorkout });
 });

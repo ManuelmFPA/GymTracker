@@ -21,6 +21,13 @@ public interface SetRepository extends JpaRepository<Set, Long> {
 
     @Query("""
             SELECT s FROM Set s
+            WHERE s.workoutExercise.workout.user.id = :userId
+            AND s.status = 'COMPLETED'
+            """)
+    List<Set> findAllCompletedForUser(@Param("userId") Long userId);
+
+    @Query("""
+            SELECT s FROM Set s
             WHERE s.workoutExercise.workout.id = :workoutId
             AND s.status = 'COMPLETED'
             """)

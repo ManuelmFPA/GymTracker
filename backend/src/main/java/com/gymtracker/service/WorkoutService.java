@@ -214,9 +214,13 @@ public class WorkoutService {
         List<WorkoutExerciseResponse> exercises = workout.getExercises().stream()
                 .sorted(Comparator.comparing(WorkoutExercise::getExerciseOrder))
                 .map(we -> {
+                    java.util.Map<Long, String> prTypeBySetId = computePrTypes(
+                            setRepository.findAllCompletedForExercise(
+                                    workout.getUser().getId(), we.getExercise().getId()));
+
                     List<SetResponse> sets = we.getSets().stream()
                             .sorted(Comparator.comparing(Set::getSetNumber))
-                            .map(this::toSetResponse).toList();
+                            .map(s -> toSetResponse(s, prTypeBySetId)).toList();
 
                     List<SetResponse> previous = workoutExerciseRepository
                             .findLastForExercise(workout.getUser().getId(), we.getExercise().getId())
@@ -224,7 +228,7 @@ public class WorkoutService {
                             .map(prev -> prev.getSets().stream()
                                     .filter(s -> s.getStatus() == SetStatus.COMPLETED)
                                     .sorted(Comparator.comparing(Set::getSetNumber))
-                                    .map(this::toSetResponse).toList())
+                                    .map(s -> toSetResponse(s, prTypeBySetId)).toList())
                             .orElse(List.of());
 
                     String best = setRepository.findAllCompletedForExercise(workout.getUser().getId(), we.getExercise().getId())
@@ -251,8 +255,49 @@ public class WorkoutService {
         );
     }
 
-    private SetResponse toSetResponse(Set s) {
+    // Escanea todas las series completadas (no calentamiento) de un ejercicio, en orden
+    // cronológico (por id), y marca cada una que haya superado el mejor peso o el mejor
+    // 1RM estimado (fórmula de Epley) visto hasta ese momento. No se persiste: se recalcula
+    // en cada lectura, igual que el resto de estadísticas de progreso de esta app.
+    // Paquete-visible (no private) para que ProgressService reutilice la misma lógica al
+    // armar los "récords recientes" del dashboard, en vez de duplicarla.
+    static java.util.Map<Long, String> computePrTypes(List<Set> completedSetsForExercise) {
+        java.util.Map<Long, String> result = new java.util.HashMap<>();
+        double maxWeight = 0;
+        double maxEst1RM = 0;
+
+        List<Set> chronological = completedSetsForExercise.stream()
+                .filter(s -> s.getSetType() != SetType.WARMUP)
+                .sorted(Comparator.comparing(Set::getId))
+                .toList();
+
+        for (Set s : chronological) {
+            Double weight = s.getWeight();
+            Integer reps = s.getRepetitions();
+            if (weight == null) continue;
+
+            Double est1RM = (reps != null && reps > 0) ? weight * (1 + reps / 30.0) : null;
+
+            boolean isWeightPr = weight > maxWeight;
+            boolean is1RMPr = est1RM != null && est1RM > maxEst1RM;
+
+            if (isWeightPr) {
+                result.put(s.getId(), "Peso máximo");
+            } else if (is1RMPr) {
+                result.put(s.getId(), "1RM estimado");
+            }
+
+            maxWeight = Math.max(maxWeight, weight);
+            if (est1RM != null) maxEst1RM = Math.max(maxEst1RM, est1RM);
+        }
+
+        return result;
+    }
+
+    private SetResponse toSetResponse(Set s, java.util.Map<Long, String> prTypeBySetId) {
+        String prType = prTypeBySetId.get(s.getId());
         return new SetResponse(s.getId(), s.getSetNumber(), s.getWeight(), s.getRepetitions(),
-                s.getRpe(), s.getStatus().name(), s.getCompletedAt(), s.getNotes(), s.getSetType().name());
+                s.getRpe(), s.getStatus().name(), s.getCompletedAt(), s.getNotes(), s.getSetType().name(),
+                prType != null, prType);
     }
 }

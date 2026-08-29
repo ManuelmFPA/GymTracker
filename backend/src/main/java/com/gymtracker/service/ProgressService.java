@@ -71,9 +71,34 @@ public class ProgressService {
                 round(monthlyVolume),
                 lastWorkout != null ? lastWorkout.getRoutineNameSnapshot() : null,
                 lastWorkout != null ? lastWorkout.getStartTime().format(FMT) : null,
-                List.of(), // recent PRs: kept simple here, see /progress/exercises/{id} for PR detail per exercise
+                getRecentPrs(userId),
                 weightHistory
         );
+    }
+
+    // PRs de los últimos 7 días, en todos los ejercicios que el usuario haya entrenado.
+    // Reutiliza el mismo algoritmo de escaneo cronológico de WorkoutService (no se
+    // duplica: se marca "record" comparando contra el mejor histórico anterior).
+    private List<String> getRecentPrs(Long userId) {
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+
+        Map<Long, List<Set>> byExercise = setRepository.findAllCompletedForUser(userId).stream()
+                .collect(Collectors.groupingBy(s -> s.getWorkoutExercise().getExercise().getId()));
+
+        return byExercise.entrySet().stream()
+                .flatMap(entry -> {
+                    List<Set> sets = entry.getValue();
+                    Map<Long, String> prTypeBySetId = WorkoutService.computePrTypes(sets);
+                    return sets.stream()
+                            .filter(s -> prTypeBySetId.containsKey(s.getId()))
+                            .filter(s -> s.getWorkoutExercise().getWorkout().getStartTime().isAfter(sevenDaysAgo))
+                            .map(s -> {
+                                String exerciseName = s.getWorkoutExercise().getExercise().getName();
+                                return exerciseName + ": " + s.getWeight() + "kg x " + s.getRepetitions()
+                                        + " (" + prTypeBySetId.get(s.getId()) + ")";
+                            });
+                })
+                .toList();
     }
 
     @Transactional(readOnly = true)

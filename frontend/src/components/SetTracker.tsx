@@ -153,8 +153,9 @@ function SetRow({ setNumber, existing, previous, onComplete }: SetRowProps) {
             : "bg-slate-100 text-slate-400 hover:bg-blue-100 hover:text-blue-600"
         }`}
         aria-label={isDone ? "Serie completada" : "Completar serie"}
+        title={existing?.isPersonalRecord ? `Récord: ${existing.prType}` : undefined}
       >
-        ✓
+        {isDone && existing?.isPersonalRecord ? "🏆" : "✓"}
       </button>
 
       {showCalculator && (
